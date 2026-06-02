@@ -431,9 +431,13 @@ function scenario(ch){
   return {seats,hero,hi,n,st};
 }
 function spotStack(ch){let m=(ch.title||'').match(/(\d+)\s*bb/i);if(m)return +m[1];m=(ch.config||'').match(/(\d+)\s*bb/i);if(m)return +m[1];return 100;}
+function potSize(ch,sc){const ante=/ante/i.test(ch.config||'')?1:0,stk=spotStack(ch),v4=ch.aggroLabel==='4bet';let pot=ante;
+  sc.seats.forEach(pos=>{const a=sc.st[pos],bl=pos==='SB'?0.5:pos==='BB'?1.0:0;
+    if(a==='open')pot+=2.3;else if(a==='3bet')pot+=10;else if(a==='jam')pot+=stk;else if(a==='hero')pot+=bl+(v4?2.3:0);else pot+=bl;});
+  return pot;}
 function renderTable(ch,nm){
-  const sc=scenario(ch), cs=handToCards(nm), stk=spotStack(ch);
-  let h='<div class="board">'+'<div class="slot"></div>'.repeat(5)+'</div><div class="pot">プリフロップ ・ 実効スタック 各 '+stk+'bb</div>';
+  const sc=scenario(ch), cs=handToCards(nm), stk=spotStack(ch), pot=Math.round(potSize(ch,sc)*10)/10;
+  let h='<div class="board">'+'<div class="slot"></div>'.repeat(5)+'</div><div class="pot">ポット ≈ '+pot+'bb</div>';
   const A={fold:['FOLD','f'],open:['RAISE','r'],'3bet':['3BET','t'],jam:['JAM','t'],call:['CALL','c'],sb:['SB','b'],bb:['BB','b'],wait:['…','w']};
   sc.seats.forEach((pos,j)=>{
     const k=(j-sc.hi+sc.n)%sc.n, th=Math.PI+2*Math.PI*k/sc.n;
