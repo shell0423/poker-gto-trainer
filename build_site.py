@@ -166,6 +166,8 @@ kbd{background:#26384a;border-radius:4px;padding:1px 6px;border:1px solid #3a506
 .act.b{background:#4a78b5;color:#fff}
 .act.w{background:#1c2a36;color:#6b7d8f}
 .seat .cards{display:flex;gap:3px;justify-content:center;margin-top:3px}
+.seat .stack{margin-top:3px;font-size:10px;font-weight:700;color:#ffe8b0;background:rgba(0,0,0,.45);border-radius:9px;padding:0 7px;display:inline-block}
+.seat.hero .stack{color:#fff;background:rgba(214,69,69,.5)}
 .card{width:24px;height:34px;border-radius:3px;background:#fafafa;color:#15171a;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-size:13px;line-height:1.05;box-shadow:0 1px 3px rgba(0,0,0,.55)}
 .card.red{color:#cc1133}
 .card span{font-size:12px}
@@ -495,9 +497,10 @@ function scenario(ch){
   st[hero]='hero';
   return {seats,hero,hi,n,st};
 }
+function spotStack(ch){let m=(ch.title||'').match(/(\d+)\s*bb/i);if(m)return +m[1];m=(ch.config||'').match(/(\d+)\s*bb/i);if(m)return +m[1];return 100;}
 function renderTable(ch,nm){
-  const sc=scenario(ch), cs=handToCards(nm);
-  let h='<div class="board">'+'<div class="slot"></div>'.repeat(5)+'</div><div class="pot">プリフロップ</div>';
+  const sc=scenario(ch), cs=handToCards(nm), stk=spotStack(ch);
+  let h='<div class="board">'+'<div class="slot"></div>'.repeat(5)+'</div><div class="pot">プリフロップ ・ 実効スタック 各 '+stk+'bb</div>';
   const A={fold:['FOLD','f'],open:['RAISE','r'],'3bet':['3BET','t'],jam:['JAM','t'],call:['CALL','c'],sb:['SB','b'],bb:['BB','b'],wait:['…','w']};
   sc.seats.forEach((pos,j)=>{
     const k=(j-sc.hi+sc.n)%sc.n, th=Math.PI+2*Math.PI*k/sc.n;
@@ -506,6 +509,7 @@ function renderTable(ch,nm){
     let inner='<div class="pos">'+pos+(hero?' ★':'')+'</div>';
     if(hero) inner+='<div class="cards">'+cardHtml(cs[0][0],cs[0][1])+cardHtml(cs[1][0],cs[1][1])+'</div>';
     else if(A[stt]) inner+='<div class="act '+A[stt][1]+'">'+A[stt][0]+'</div>';
+    inner+='<div class="stack">'+(hero?'あなた ':'')+stk+'bb</div>';
     h+='<div class="seat'+(hero?' hero':'')+(stt==='fold'?' fold':'')+'" style="left:'+x+'%;top:'+y+'%">'+inner+'</div>';
   });
   document.getElementById('ptable').innerHTML=h;
