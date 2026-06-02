@@ -51,6 +51,7 @@ try {
    const eq=global.computeEquity([[cd('Qs'),cd('Jh')],[cd('9s'),cd('9h')],[cd('8s'),cd('7d')]],[cd('As'),cd('Ks'),cd('7c')]).map(x=>+x.equity.toFixed(2));
    if(Math.abs(eq[0]-39.65)>0.2||Math.abs(eq[1]-44.19)>0.2||Math.abs(eq[2]-16.17)>0.2) throw new Error('equity wrong: '+eq.join('/'));
    console.log('equity self-test ok:',eq.join(' / '));}
+  fire('tabHowto','onclick');
   fire('tabChart','onclick');
   console.log('ALL PATHS ok ✓');
 } catch(e) {

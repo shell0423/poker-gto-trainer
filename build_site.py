@@ -207,6 +207,14 @@ kbd{background:#26384a;border-radius:4px;padding:1px 6px;border:1px solid #3a506
 .rcell{height:26px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;border-radius:3px;background:#22303f;border:1px solid #2c3e50;cursor:pointer;color:#9fb2c4}
 .rcell.ron{background:var(--ca);color:#06140b;border-color:var(--ca)}
 #detbox{min-width:280px}
+#howto{display:none;padding:18px;max-width:680px;line-height:1.75}
+#howto.on{display:block}
+#howto h2{margin:0 0 8px}
+#howto h3{margin:18px 0 6px;font-size:15px;color:#cfe0f0;border-bottom:1px solid #243443;padding-bottom:4px}
+#howto p{margin:6px 0;font-size:13.5px;color:#dbe6f0}
+#howto ul,#howto ol{margin:6px 0;padding-left:20px;font-size:13px;color:#cdd9e6}
+#howto li{margin:3px 0}
+#howto .tip{background:var(--pan);border:1px solid #243443;border-radius:10px;padding:10px 14px;margin:10px 0}
 </style></head><body>
 <header>
   <h1>♠ GTO Preflop Trainer</h1>
@@ -216,6 +224,7 @@ kbd{background:#26384a;border-radius:4px;padding:1px 6px;border:1px solid #3a506
   <button class="tab" id="tabQuiz">クイズ</button>
   <button class="tab" id="tabGloss">用語集</button>
   <button class="tab" id="tabCalc">計算機</button>
+  <button class="tab" id="tabHowto">使い方</button>
   <span class="score" id="score"></span>
 </header>
 
@@ -240,6 +249,7 @@ kbd{background:#26384a;border-radius:4px;padding:1px 6px;border:1px solid #3a506
     <div class="panel" id="sQuiz">
       <div class="qctl">
         出題範囲 <select id="qscope"><option value="edge">EDGE POKER（推奨）</option><option value="cfg">この構成のみ</option><option value="all">全構成</option></select>
+        スタック <select id="qstack"><option value="all">全部</option><option value="le10">≤10bb</option><option value="11-20">11-20bb</option><option value="21-50">21-50bb</option><option value="deep">50bb+</option></select>
         <button class="qmini" id="qreview">復習モード (<span id="missN">0</span>)</button>
         <button class="qmini" id="qclear">履歴クリア</button>
         <button class="qmini" id="qChartBtn">📊 チャート</button>
@@ -280,6 +290,47 @@ kbd{background:#26384a;border-radius:4px;padding:1px 6px;border:1px solid #3a506
   <div class="calc-players-head"><h3>Player Hands</h3><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="qmini" id="catLang">EN</button><button class="qmini" id="randomDeal">🎲 ランダム</button><button class="qmini" id="calcReset">キャンセル</button><button class="qmini" id="addPlayer">＋ 追加</button></div></div>
   <div id="players"></div>
   <div style="font-size:11px;color:var(--mut);margin-top:12px;line-height:1.6">カードをタップ→選択。2人以上のハンドが揃うと<b>勝率（エクイティ）</b>を自動計算します。フロップ以降は厳密計算、プリフロップ等の重い局面はモンテカルロ近似（〜近似 と表示）。「キャンセル」で全消去。</div>
+</div>
+<div id="howto">
+  <h2>使い方ガイド <span style="font-size:12px;color:var(--mut);font-weight:400">— はじめての方へ</span></h2>
+  <p>このアプリは、ポーカー（テキサスホールデム）の<b>プリフロップ（最初の2枚での判断）</b>を、色分けチャート・クイズ・計算機で学ぶツールです。インストール不要、スマホでもOK。</p>
+  <div class="tip">💡 <b>いちばんの近道</b>：上の「<b>クイズ</b>」タブを開いて10問ほど解き、回答後に出る<b>理由</b>を読むこと。間違えた手は「復習モード」で繰り返せます。</div>
+  <h3>最低限の言葉</h3>
+  <ul>
+    <li><b>bb（ビッグブラインド）</b>＝賭けの単位。スタック「10bb」＝ブラインド10回分の持ちチップ（本アプリでは <b>1bb＝100チップ</b>で併記）。</li>
+    <li><b>ポジション</b>＝席（UTG/CO/BTN/SB/BBなど）。後に行動できる席ほど有利。</li>
+    <li><b>レンジ</b>＝「その状況で打つ手の範囲」。<b>GTO</b>＝理論上いちばん損しない打ち方。</li>
+    <li>分からない言葉は「<b>用語集</b>」タブで検索できます（257語）。</li>
+  </ul>
+  <h3>① チャート タブ — 「どの手をどう打つか」の早見表</h3>
+  <ul>
+    <li>13×13のマス＝169通りの手。色＝🔴攻める（Open/3bet/4bet/Jam）・🟢コール・🔵フォールド。</li>
+    <li>マスが2色に割れている＝<b>ミックス</b>（その手は◯%で攻め、◯%で降りるのが正解）。</li>
+    <li>マスにマウス/タップで<b>頻度・EV・理由</b>を表示。</li>
+    <li>上の「構成」で状況、「スポット」でポジションやスタックを選択。</li>
+  </ul>
+  <h3>② クイズ タブ — 「あなたならどうする？」</h3>
+  <ul>
+    <li>ポーカーテーブルに各プレイヤーの行動（FOLD/RAISE/JAM…）・<b>スタック（bbとチップ）</b>・<b>ポット</b>、自分の席に手札を表示。</li>
+    <li>下のボタンで回答 → 正解の頻度・EV・理由が出ます。</li>
+    <li>「<b>出題範囲</b>」でEDGE/全構成、「<b>スタック</b>」で深さ（≤10bb等）を絞れます。</li>
+    <li>「<b>📊チャート</b>」で答えの表、「<b>用語クイズ</b>」で言葉も練習。</li>
+  </ul>
+  <h3>③ 計算機 タブ — 勝率（エクイティ）計算</h3>
+  <ul>
+    <li>ボードと各プレイヤーの<b>ハンド or レンジ</b>を入れると、勝率を自動計算（Equilab相当）。</li>
+    <li>「詳細」で<b>役の確率内訳</b>と<b>アウツ</b>（次の1枚で逆転するカード）も見られます。</li>
+  </ul>
+  <h3>🏆 EDGE POKERで勝ちたい人へ</h3>
+  <p>EDGEは<b>4-max・超短スタックの速い構造</b>。勝敗の大半は<b>短スタックの jam/call</b>で決まります。クイズの出題範囲を「<b>EDGE POKER</b>」にして、jam/callを体に入れるのが最短です。</p>
+  <h3>👣 最初の一歩</h3>
+  <ol>
+    <li>「クイズ」タブを開く（最初からEDGE出題）。</li>
+    <li>10問解いて、回答後の「理由」を読む。</li>
+    <li>間違えた手は「チャート」タブで色を確認。</li>
+    <li>分からない言葉は「用語集」で引く。</li>
+  </ol>
+  <div class="tip" style="font-size:12px;color:var(--mut)">※「近似」表示のレンジは公開ソルバー整合の学習用。「厳密Nash」表示（プッシュ/フォールド）と計算機のエクイティは自前計算の本物です。</div>
 </div>
 <div id="picker"><div class="pickbox" id="pickbox"></div></div>
 <div id="rangeed"><div class="pickbox" id="rangeedbox"></div></div>
@@ -497,6 +548,7 @@ function scenario(ch){
   st[hero]='hero';
   return {seats,hero,hi,n,st};
 }
+const CHIP_PER_BB=100; // 初心者向けチップ換算（BB=100チップ）
 function spotStack(ch){let m=(ch.title||'').match(/(\d+)\s*bb/i);if(m)return +m[1];m=(ch.config||'').match(/(\d+)\s*bb/i);if(m)return +m[1];return 100;}
 function potSize(ch,sc){const ante=/ante/i.test(ch.config||'')?1:0,stk=spotStack(ch),v4=ch.aggroLabel==='4bet';let pot=ante;
   sc.seats.forEach(pos=>{const a=sc.st[pos],bl=pos==='SB'?0.5:pos==='BB'?1.0:0;
@@ -504,7 +556,8 @@ function potSize(ch,sc){const ante=/ante/i.test(ch.config||'')?1:0,stk=spotStack
   return pot;}
 function renderTable(ch,nm){
   const sc=scenario(ch), cs=handToCards(nm), stk=spotStack(ch), pot=Math.round(potSize(ch,sc)*10)/10;
-  let h='<div class="board">'+'<div class="slot"></div>'.repeat(5)+'</div><div class="pot">ポット ≈ '+pot+'bb</div>';
+  const CH=v=>Math.round(v*CHIP_PER_BB).toLocaleString();
+  let h='<div class="board">'+'<div class="slot"></div>'.repeat(5)+'</div><div class="pot">ポット ≈ '+pot+'bb（'+CH(pot)+'チップ）</div>';
   const A={fold:['FOLD','f'],open:['RAISE','r'],'3bet':['3BET','t'],jam:['JAM','t'],call:['CALL','c'],sb:['SB','b'],bb:['BB','b'],wait:['…','w']};
   sc.seats.forEach((pos,j)=>{
     const k=(j-sc.hi+sc.n)%sc.n, th=Math.PI+2*Math.PI*k/sc.n;
@@ -513,7 +566,7 @@ function renderTable(ch,nm){
     let inner='<div class="pos">'+pos+(hero?' ★':'')+'</div>';
     if(hero) inner+='<div class="cards">'+cardHtml(cs[0][0],cs[0][1])+cardHtml(cs[1][0],cs[1][1])+'</div>';
     else if(A[stt]) inner+='<div class="act '+A[stt][1]+'">'+A[stt][0]+'</div>';
-    inner+='<div class="stack">'+(hero?'あなた ':'')+stk+'bb</div>';
+    inner+='<div class="stack">'+(hero?'あなた ':'')+stk+'bb・'+CH(stk)+'</div>';
     h+='<div class="seat'+(hero?' hero':'')+(stt==='fold'?' fold':'')+'" style="left:'+x+'%;top:'+y+'%">'+inner+'</div>';
   });
   document.getElementById('ptable').innerHTML=h;
@@ -532,6 +585,9 @@ function pickQuiz(){
     else if(sv==='all')pool=DATA.filter(c=>Object.keys(c.hands).length);
     else pool=DATA.filter(c=>c.config===cfgSel.value&&Object.keys(c.hands).length);
     if(!pool.length)pool=DATA.filter(c=>Object.keys(c.hands).length);
+    const sk=document.getElementById('qstack'),sv2=sk?sk.value:'all';
+    if(sv2!=='all'){const inR=v=>sv2==='le10'?v<=10:sv2==='11-20'?(v>=11&&v<=20):sv2==='21-50'?(v>=21&&v<=50):v>50;
+      const f=pool.filter(c=>inR(spotStack(c)));if(f.length)pool=f;}
     ch=pool[Math.floor(Math.random()*pool.length)];
     nm=WNAMES[Math.floor(Math.random()*WNAMES.length)];   // combo-weighted
   }
@@ -872,11 +928,12 @@ function toggleCatLang(){catLang=catLang==='en'?'ja':'en';document.getElementByI
 
 // ---- tabs ----
 function showView(v){
-  [['tabChart','chart'],['tabQuiz','quiz'],['tabGloss','gloss'],['tabCalc','calc']].forEach(([id,name])=>document.getElementById(id).classList.toggle('on',v===name));
+  [['tabChart','chart'],['tabQuiz','quiz'],['tabGloss','gloss'],['tabCalc','calc'],['tabHowto','howto']].forEach(([id,name])=>document.getElementById(id).classList.toggle('on',v===name));
   document.getElementById('chartView').style.display=v==='chart'?'flex':'none';
   document.getElementById('quiz').classList.toggle('on',v==='quiz');
   document.getElementById('gloss').classList.toggle('on',v==='gloss');
   document.getElementById('calc').classList.toggle('on',v==='calc');
+  document.getElementById('howto').classList.toggle('on',v==='howto');
   if(v==='quiz'){qmode==='strat'?pickQuiz():pickTermQuiz();}
   if(v==='gloss')renderGloss(gs?gs.value:'');
   if(v==='calc')renderCalc();
@@ -885,6 +942,7 @@ document.getElementById('tabChart').onclick=()=>showView('chart');
 document.getElementById('tabQuiz').onclick=()=>showView('quiz');
 document.getElementById('tabGloss').onclick=()=>showView('gloss');
 document.getElementById('tabCalc').onclick=()=>showView('calc');
+document.getElementById('tabHowto').onclick=()=>showView('howto');
 document.getElementById('addPlayer').onclick=()=>{if(cPlayers.length<10){cPlayers.push(newPlayer());renderCalc();}};
 document.getElementById('calcReset').onclick=resetCalc;
 document.getElementById('clearBoard').onclick=clearBoard;
@@ -895,6 +953,7 @@ document.getElementById('tnext').onclick=pickTermQuiz;
 document.getElementById('qmStrat').onclick=()=>setQMode('strat');
 document.getElementById('qmTerm').onclick=()=>setQMode('term');
 document.getElementById('qscope').onchange=pickQuiz;
+document.getElementById('qstack').onchange=pickQuiz;
 document.getElementById('qreview').onclick=()=>{reviewMode=!reviewMode;document.getElementById('qreview').classList.toggle('on',reviewMode);pickQuiz();};
 document.getElementById('qclear').onclick=()=>{missed=[];saveMissed();updMissedUI();};
 document.getElementById('qChartBtn').onclick=toggleQuizChart;
