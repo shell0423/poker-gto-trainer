@@ -43,6 +43,10 @@ try {
   fire('qnext','onclick'); if(reg['qcGrid']._children.length!==169) throw new Error('quiz chart did not refresh on next');
   fire('qmPost','onclick'); if(!reg['pQuizBody']._html||reg['pQuizBody']._html.indexOf('pq-q')<0) throw new Error('postflop quiz not rendered');
   for(let z=0;z<25;z++) global.pickPost(); // exercise all postflop question types
+  fire('qmSrp','onclick'); if(!reg['srpQuizBody']._html||reg['srpQuizBody']._html.indexOf('pq-q')<0) throw new Error('SRP strategy quiz not rendered');
+  if(reg['srpQuizBody']._html.indexOf('pq-board')<0) throw new Error('SRP quiz has no flop (empty data?)');
+  for(let z=0;z<40;z++){ global.pickSrp(); global.answerSrp((Math.random()*3)|0); if(reg['srpres']._html.indexOf('GTO頻度')<0) throw new Error('SRP grading not shown'); } // both sides + grading
+  console.log('SRP quiz ok: rendered board + 40 graded answers');
   fire('qmStrat','onclick');
   fire('qmTerm','onclick');   if(!reg['tprompt']._tc) throw new Error('term quiz empty');
   fire('qmStrat','onclick'); fire('qnext','onclick'); fire('tnext','onclick'); fire('qreview','onclick');

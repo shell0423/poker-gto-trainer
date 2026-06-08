@@ -32,24 +32,30 @@ if os.path.exists(SRC_MULTIWAY):
 # 4) extra configs (full-ring / MTT / 50bb)
 if os.path.exists(SRC_EXTRA):
     charts += json.load(open(SRC_EXTRA))
-# 5) BTN vs BB SRP flop GTO (self-built CFR solver, postflop)
+# 5) BTN vs BB SRP flop GTO (self-built vector-CFR solver: 2 sizes + check-raise)
 SRC_SRP = os.path.join(DATA, "srp_flop.json")
+SRP_CAVEAT = ("自前vector-CFR（cベットを小33%/大75%の2サイズ＋BBチェックレイズまで）。"
+              "ターン/リバーをエクイティで評価する単一ベットラウンドの厳密Nashのため、"
+              "**cベット頻度は実戦GTOより控えめ**に出ます（ターンの追撃価値を含まないため）。"
+              "手の強さ・盤面差・守備の相対傾向の学習用。真の多ストリート解はロードマップ参照。")
 if os.path.exists(SRC_SRP):
     for f in json.load(open(SRC_SRP))["flops"]:
         cat = f"{f['flop']} — {f['label']}"
         charts.append({
             "config": "BTN vs BB SRP (flop GTO)", "cat": cat,
-            "title": f"{f['flop']} BTN c-bet", "sizing": "2/3 pot c-bet",
-            "rangePct": f"c-bet {f['cbet_overall']}%", "aggroLabel": "Cbet", "exact": True,
-            "notes": f"BTN vs BB シングルレイズドポット、フロップ {f['flop']}（{f['label']}）。BBチェック→BTNがcベット(2/3ポット)orチェック。自前CFRソルバーのフロップGTO（赤=cベット / 青=チェック）。ターン/リバーはエクイティで評価する単一ベットラウンドの厳密Nash（深いSPRでは近似）。",
-            "hands": [{"hand": k, "aggroPct": v, "callPct": 0, "foldPct": 100 - v} for k, v in f["cbet"].items()],
+            "title": f"{f['flop']} BTN ベット/チェック", "sizing": "小33% / 大75%",
+            "rangePct": f"bet {f['cbet_overall']}%（控えめ）", "aggroLabel": "大ベット", "exact": False,
+            "notes": f"BTN vs BB SRP フロップ {f['flop']}（{f['label']}）。赤=大ベット(75%) / 緑=小ベット(33%) / 青=チェック。{SRP_CAVEAT}",
+            "hands": [{"hand": k, "aggroPct": f["cbet_big"].get(k, 0), "callPct": f["cbet_small"].get(k, 0),
+                       "foldPct": 100 - f["cbet_big"].get(k, 0) - f["cbet_small"].get(k, 0)} for k in f["cbet"]],
         })
         charts.append({
             "config": "BTN vs BB SRP (flop GTO)", "cat": cat,
-            "title": f"{f['flop']} BB vs c-bet", "sizing": "vs 2/3 pot",
-            "rangePct": f"call {f['bbcall_overall']}%", "aggroLabel": "Raise", "exact": True,
-            "notes": f"BB が BTN の 2/3 ポット c ベットに対して コール/フォールド（フロップ {f['flop']}）。緑=コール / 青=フォールド。自前CFR（単一ベットラウンド）。ウェットな盤ほど守備が広い。",
-            "hands": [{"hand": k, "aggroPct": 0, "callPct": v, "foldPct": 100 - v} for k, v in f["bbcall"].items()],
+            "title": f"{f['flop']} BB vs c-bet", "sizing": "vs c-bet",
+            "rangePct": f"call {f['call_overall']}% / raise {f['raise_overall']}%", "aggroLabel": "レイズ", "exact": False,
+            "notes": f"BB が BTN の c ベットに対して フォールド/コール/チェックレイズ（フロップ {f['flop']}）。赤=チェックレイズ / 緑=コール / 青=フォールド。ウェットな盤ほど守備が広い。{SRP_CAVEAT}",
+            "hands": [{"hand": k, "aggroPct": f["bb_raise"].get(k, 0), "callPct": f["bb_call"].get(k, 0),
+                       "foldPct": 100 - f["bb_raise"].get(k, 0) - f["bb_call"].get(k, 0)} for k in f["bb_call"]],
         })
 
 # normalize: hands -> {name:[a,c,f]}
@@ -83,6 +89,12 @@ if os.path.exists(SRC_GLOSSARY):
     glossary = g.get("cats", g) if isinstance(g, dict) else g
 print(f"glossary categories: {len(glossary)}  terms: {sum(len(c.get('terms', [])) for c in glossary)}")
 GLOSSARY = json.dumps(glossary, ensure_ascii=False, separators=(",", ":"))
+
+# SRP solver data embedded raw for the postflop strategy quiz
+_srp_path = os.path.join(DATA, "srp_flop.json")
+_srp_data = json.load(open(_srp_path)) if os.path.exists(_srp_path) else {"flops": []}
+SRP_JSON = json.dumps(_srp_data, ensure_ascii=False, separators=(",", ":"))
+print(f"SRP quiz flops: {len(_srp_data.get('flops', []))}")
 
 HTML = """<!DOCTYPE html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -272,6 +284,7 @@ kbd{background:#26384a;border-radius:4px;padding:1px 6px;border:1px solid #3a506
       <button class="qm on" id="qmStrat">戦略クイズ</button>
       <button class="qm" id="qmTerm">用語クイズ</button>
       <button class="qm" id="qmPost">ポストフロップ</button>
+      <button class="qm" id="qmSrp">SRP戦略</button>
     </div>
     <div class="panel" id="sQuiz">
       <div class="qctl">
@@ -298,6 +311,10 @@ kbd{background:#26384a;border-radius:4px;padding:1px 6px;border:1px solid #3a506
     <div class="panel" id="pQuiz" style="display:none">
       <div id="pQuizBody"></div>
       <button id="pqnext">次の問題 ▶ <kbd>Enter</kbd></button>
+    </div>
+    <div class="panel" id="srpQuiz" style="display:none">
+      <div id="srpQuizBody"></div>
+      <button id="srpnext">次の問題 ▶ <kbd>Enter</kbd></button>
     </div>
   </div>
   <div class="panel" id="qchart" style="display:none">
@@ -344,7 +361,7 @@ kbd{background:#26384a;border-radius:4px;padding:1px 6px;border:1px solid #3a506
     <li><b>構成</b>＝ゲームの種類とスタックの深さ。例：<b>6-max 100bb cash</b>（6人・100bb）、<b>EDGE Push/Fold</b>（EDGE実戦の短スタック）、<b>First-in Push/Fold</b>、<b>50bb / フルリング / MTT</b> など。まず「どんな状況か」をここで選ぶ。</li>
     <li><b>スポット</b>＝その中の具体的な局面。例：<b>UTG RFI</b>（UTGで最初に開くか）、<b>BTN vs SB 3bet</b>、<b>4-max BTN Jam — 10bb</b>（4-maxのBTNで10bbをジャムするか）。ポジション・相手の行動・スタックがここで決まる。</li>
     <li><b>スポット名の読み方</b>：「自分のポジション＋状況」。<b>RFI</b>＝最初に自分が開く／<b>vs ○○</b>＝相手の○○に対して／<b>Jam — Xbb</b>＝Xbbをオールインするか。</li>
-    <li><b>ポストフロップGTO</b>：構成「<b>BTN vs BB SRP (flop GTO)</b>」で、フロップ別の<b>cベット頻度</b>（赤=ベット/青=チェック）と<b>BBの守備</b>（緑=コール/青=フォールド）が見られます。自前CFRソルバーで計算（ウェットな盤ほどBBが広く守る）。</li>
+    <li><b>ポストフロップGTO</b>：構成「<b>BTN vs BB SRP (flop GTO)</b>」で、<b>38フロップ</b>別に <b>BTNのベット</b>（赤=大ベット75%/緑=小ベット33%/青=チェック）と <b>BBの守備</b>（赤=チェックレイズ/緑=コール/青=フォールド）が見られます。自前の<b>vector-CFRソルバー</b>（2サイズ＋チェックレイズ）で計算。ウェットな盤ほどBBが広く守り、チェックレイズも増えます。<br><span style="color:#9fb3c6;font-size:12px">※単一ベットラウンド解のため<b>cベット頻度は実戦より控えめ</b>。手の強さ・盤面差・守備の広さの学習用です。</span></li>
   </ul>
   <h3>▸ よく出るアクション用語</h3>
   <ul>
@@ -360,6 +377,8 @@ kbd{background:#26384a;border-radius:4px;padding:1px 6px;border:1px solid #3a506
     <li>下のボタンで回答 → 正解の頻度・EV・理由が出ます。</li>
     <li>「<b>出題範囲</b>」でEDGE/全構成、「<b>スタック</b>」で深さ（≤10bb等）を絞れます。</li>
     <li>「<b>📊チャート</b>」で答えの表、「<b>用語クイズ</b>」で言葉も練習。</li>
+    <li><b>ポストフロップ</b>＝フロップ以降の役・勝率・アウツ・ポットオッズを当てる練習（全て厳密計算）。</li>
+    <li><b>SRP戦略</b>＝BTN vs BBのフロップで、自分のハンドの<b>GTOアクション</b>（BTN: ベット/チェック、BB: フォールド/コール/チェックレイズ）を当てる練習。混合戦略なので、<b>GTOが使う行動ならどれも正解</b>として頻度を表示します。</li>
   </ul>
   <h3>③ 計算機 タブ — 勝率（エクイティ）計算</h3>
   <ul>
@@ -384,6 +403,7 @@ kbd{background:#26384a;border-radius:4px;padding:1px 6px;border:1px solid #3a506
 <script>
 const DATA = __PAYLOAD__;
 const GLOSSARY = __GLOSSARY__;   // defined early: used by the term-quiz (ALLTERMS) before the glossary section
+const SRP = __SRP__;             // BTN vs BB SRP flop solver output (postflop strategy quiz)
 const RANKS=['A','K','Q','J','T','9','8','7','6','5','4','3','2'];
 const COL={a:'var(--ag)',c:'var(--ca)',f:'var(--fo)'};
 function handName(i,j){const a=RANKS[i],b=RANKS[j];return i===j?a+a:(i<j?a+b+'s':b+a+'o');}
@@ -705,13 +725,16 @@ function setQMode(m){
   document.getElementById('qmStrat').classList.toggle('on',m==='strat');
   document.getElementById('qmTerm').classList.toggle('on',m==='term');
   document.getElementById('qmPost').classList.toggle('on',m==='post');
+  document.getElementById('qmSrp').classList.toggle('on',m==='srp');
   document.getElementById('sQuiz').style.display=m==='strat'?'block':'none';
   document.getElementById('tQuiz').style.display=m==='term'?'block':'none';
   document.getElementById('pQuiz').style.display=m==='post'?'block':'none';
+  document.getElementById('srpQuiz').style.display=m==='srp'?'block':'none';
   document.getElementById('qchart').style.display=(m==='strat'&&qchartOpen)?'block':'none';
   if(m==='strat'){pickQuiz();updScore();}
   else if(m==='term'){pickTermQuiz();updTScore();}
-  else{pickPost();updPScore();}
+  else if(m==='post'){pickPost();updPScore();}
+  else{pickSrp();updSScore();}
 }
 // ---- postflop skill quiz (engine-based: hand reading / equity / outs / pot odds) ----
 let pscore=0,ptries=0,pcur=null;
@@ -752,6 +775,54 @@ function answerPost(i){
   const cor=pcur.q.options.find(o=>o.correct).label;
   document.getElementById('pqres').innerHTML='<b style="color:'+(ok?'var(--ca)':'var(--ag)')+'">'+(ok?'◎ 正解':'✕ 不正解（正解: '+cor+'）')+'</b><div class="why">'+pcur.q.explain+'</div>';
   updPScore();
+}
+
+// ---- SRP postflop STRATEGY quiz (BTN vs BB single-raised pot, self-built vector-CFR) ----
+let sscore=0,stries=0,scur=null;
+const SRPNOTE='※単一ベットラウンド解（ターン以降=エクイティ）のため、ベット頻度は実戦GTOより控えめに出ます。相対傾向・盤面差・守備の広さを学ぶ用です。複数の行動がGTOミックスなら、いずれも正解として扱います。';
+function updSScore(){if(qmode!=='srp')return;document.getElementById('score').textContent=stries?('SRP戦略 '+sscore+'/'+stries+' ('+Math.round(sscore/stries*100)+'%)'):'';}
+function srpCard(t){return RKS.indexOf(t[0])*4+({s:0,h:1,d:2,c:3})[t[1]];}
+function srpFlopCards(s){return [srpCard(s.slice(0,2)),srpCard(s.slice(2,4)),srpCard(s.slice(4,6))];}
+function srpPickCombo(name,dead){const cs=classCombos(name).filter(c=>!dead[c[0]]&&!dead[c[1]]);return cs.length?cs[(Math.random()*cs.length)|0]:null;}
+function pickSrp(){
+  if(!SRP.flops||!SRP.flops.length){document.getElementById('srpQuizBody').innerHTML='<div class="gmut">SRPデータがありません。</div>';return;}
+  const F=SRP.flops[(Math.random()*SRP.flops.length)|0];
+  const board=srpFlopCards(F.flop),dead={};board.forEach(c=>dead[c]=1);
+  const side=Math.random()<0.5?'btn':'bb';
+  let names,name=null,combo=null,mix,prompt,note;
+  if(side==='btn'){
+    names=Object.keys(F.cbet);
+    for(let t=0;t<16&&!combo;t++){name=names[(Math.random()*names.length)|0];combo=srpPickCombo(name,dead);}
+    const big=F.cbet_big[name]||0,small=F.cbet_small[name]||0,chk=Math.max(0,100-big-small);
+    mix=[['大ベット(75%)',big],['小ベット(33%)',small],['チェック',chk]];
+    prompt='あなたは <b>BTN</b>。BBがチェックした。あなたの行動は？';
+    note='BTNのc-betは小33%/大75%の2サイズから選択。'+SRPNOTE;
+  }else{
+    names=Object.keys(F.bb_call);
+    for(let t=0;t<16&&!combo;t++){name=names[(Math.random()*names.length)|0];combo=srpPickCombo(name,dead);}
+    const rai=F.bb_raise[name]||0,cal=F.bb_call[name]||0,fld=Math.max(0,100-rai-cal);
+    mix=[['チェックレイズ',rai],['コール',cal],['フォールド',fld]];
+    prompt='あなたは <b>BB</b>。BTNがc-betした。あなたの行動は？';
+    note='ウェット（連結・二色）な盤ほど守備（コール/レイズ）を広げる。'+SRPNOTE;
+  }
+  scur={F,board,combo,name,mix,prompt,note,done:false};
+  renderSrp();
+}
+function renderSrp(){
+  const s=scur;
+  let h='<div class="pq-board"><span class="pq-lbl">フロップ（'+s.F.label+'）</span>'+s.board.map(pqCard).join('')+'</div>';
+  h+='<div class="pq-hands"><span class="pq-lbl">あなたのハンド（'+s.name+'）</span> '+(s.combo?s.combo.map(pqCard).join(''):s.name)+'</div>';
+  h+='<div class="pq-q">'+s.prompt+'</div><div class="qbtns" id="srpbtns"></div><div class="qres" id="srpres"></div>';
+  document.getElementById('srpQuizBody').innerHTML=h;
+  const bw=document.getElementById('srpbtns');s.mix.forEach((m,i)=>{const b=document.createElement('button');b.textContent=m[0];b.onclick=()=>answerSrp(i);bw.appendChild(b);});
+}
+function answerSrp(i){
+  if(!scur||scur.done)return;scur.done=true;stries++;
+  const mix=scur.mix,freq=mix[i][1];let amax=0;for(let k=1;k<mix.length;k++)if(mix[k][1]>mix[amax][1])amax=k;
+  const ok=(freq>=20)||(i===amax);if(ok)sscore++;
+  const bars=mix.map((m,k)=>'<div style="display:flex;justify-content:space-between;gap:12px;padding:1px 0'+(k===amax?';font-weight:700':'')+'"><span>'+m[0]+(k===amax?' ◀ 最頻':'')+'</span><b>'+Math.round(m[1])+'%</b></div>').join('');
+  document.getElementById('srpres').innerHTML='<b style="color:'+(ok?'var(--ca)':'var(--ag)')+'">'+(ok?'◎ GTOミックスに含まれる行動':'△ 頻度の低い行動（最頻は別）')+'</b><div class="why"><div style="margin:0 0 6px">GTO頻度（'+scur.name+'）:</div>'+bars+'<div style="margin-top:8px">'+scur.note+'</div></div>';
+  updSScore();
 }
 
 // ---- glossary ---- (GLOSSARY is declared at the top)
@@ -1023,7 +1094,7 @@ function showView(v){
   document.getElementById('gloss').classList.toggle('on',v==='gloss');
   document.getElementById('calc').classList.toggle('on',v==='calc');
   document.getElementById('howto').classList.toggle('on',v==='howto');
-  if(v==='quiz'){qmode==='strat'?pickQuiz():qmode==='term'?pickTermQuiz():pickPost();}
+  if(v==='quiz'){qmode==='strat'?pickQuiz():qmode==='term'?pickTermQuiz():qmode==='post'?pickPost():pickSrp();}
   if(v==='gloss')renderGloss(gs?gs.value:'');
   if(v==='calc')renderCalc();
 }
@@ -1042,19 +1113,21 @@ document.getElementById('tnext').onclick=pickTermQuiz;
 document.getElementById('qmStrat').onclick=()=>setQMode('strat');
 document.getElementById('qmTerm').onclick=()=>setQMode('term');
 document.getElementById('qmPost').onclick=()=>setQMode('post');
+document.getElementById('qmSrp').onclick=()=>setQMode('srp');
 document.getElementById('pqnext').onclick=pickPost;
+document.getElementById('srpnext').onclick=pickSrp;
 document.getElementById('qscope').onchange=pickQuiz;
 document.getElementById('qstack').onchange=pickQuiz;
 document.getElementById('qreview').onclick=()=>{reviewMode=!reviewMode;document.getElementById('qreview').classList.toggle('on',reviewMode);pickQuiz();};
 document.getElementById('qclear').onclick=()=>{missed=[];saveMissed();updMissedUI();};
 document.getElementById('qChartBtn').onclick=toggleQuizChart;
-document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.getElementById('quiz').classList.contains('on')){qmode==='strat'?pickQuiz():qmode==='term'?pickTermQuiz():pickPost();}});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.getElementById('quiz').classList.contains('on')){qmode==='strat'?pickQuiz():qmode==='term'?pickTermQuiz():qmode==='post'?pickPost():pickSrp();}});
 document.addEventListener('click',e=>{const el=e.target.closest('.gl');if(el&&el.dataset.go)gotoGloss(el.dataset.go);});
 cfgSel.onchange=()=>{fillSpots();renderGrid();};
 spotSel.onchange=renderGrid;
 fillSpots();renderGrid();updScore();updMissedUI();
 </script></body></html>"""
 
-out = HTML.replace("__PAYLOAD__", PAYLOAD).replace("__GLOSSARY__", GLOSSARY)
+out = HTML.replace("__PAYLOAD__", PAYLOAD).replace("__GLOSSARY__", GLOSSARY).replace("__SRP__", SRP_JSON)
 open(os.path.join(BASE, "index.html"), "w").write(out)
 print("WROTE", os.path.join(BASE, "index.html"), f"({len(out)} bytes)")
