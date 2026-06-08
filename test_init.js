@@ -41,6 +41,9 @@ try {
   fire('tabQuiz','onclick');  if(!reg['ptable']._html||reg['ptable']._html.indexOf('seat')<0) throw new Error('strategy quiz table empty');
   fire('qChartBtn','onclick'); if(reg['qcGrid']._children.length!==169) throw new Error('quiz-side chart not rendered ('+reg['qcGrid']._children.length+')');
   fire('qnext','onclick'); if(reg['qcGrid']._children.length!==169) throw new Error('quiz chart did not refresh on next');
+  fire('qmPost','onclick'); if(!reg['pQuizBody']._html||reg['pQuizBody']._html.indexOf('pq-q')<0) throw new Error('postflop quiz not rendered');
+  for(let z=0;z<25;z++) global.pickPost(); // exercise all postflop question types
+  fire('qmStrat','onclick');
   fire('qmTerm','onclick');   if(!reg['tprompt']._tc) throw new Error('term quiz empty');
   fire('qmStrat','onclick'); fire('qnext','onclick'); fire('tnext','onclick'); fire('qreview','onclick');
   fire('tabGloss','onclick'); if(reg['glist']._children.length<1) throw new Error('glossary empty');

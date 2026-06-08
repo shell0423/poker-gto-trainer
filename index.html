@@ -148,6 +148,13 @@ kbd{background:#26384a;border-radius:4px;padding:1px 6px;border:1px solid #3a506
 #howto ul,#howto ol{margin:6px 0;padding-left:20px;font-size:13px;color:#cdd9e6}
 #howto li{margin:3px 0}
 #howto .tip{background:var(--pan);border:1px solid #243443;border-radius:10px;padding:10px 14px;margin:10px 0}
+/* postflop quiz */
+#pQuiz .pq-board{background:radial-gradient(ellipse at center,#1f6b46,#0e3b27);border:4px solid #2a1c12;border-radius:14px;padding:14px;margin:8px 0;text-align:center}
+#pQuiz .pq-board .pq-lbl{color:#cfe9d8;display:block;margin-bottom:6px}
+.pqc{display:inline-block;min-width:28px;padding:4px 6px;margin:2px;background:#f3f6fa;border-radius:5px;font-weight:800;font-size:17px;box-shadow:0 1px 3px rgba(0,0,0,.5)}
+.pq-lbl{font-size:11px;color:var(--mut)}
+#pQuiz .pq-hands{margin:12px 0;font-size:13px}
+#pQuiz .pq-q{font-size:15px;font-weight:700;margin:14px 0 6px}
 </style></head><body>
 <header>
   <h1>♠ GTO Preflop Trainer</h1>
@@ -178,6 +185,7 @@ kbd{background:#26384a;border-radius:4px;padding:1px 6px;border:1px solid #3a506
     <div class="qmode">
       <button class="qm on" id="qmStrat">戦略クイズ</button>
       <button class="qm" id="qmTerm">用語クイズ</button>
+      <button class="qm" id="qmPost">ポストフロップ</button>
     </div>
     <div class="panel" id="sQuiz">
       <div class="qctl">
@@ -200,6 +208,10 @@ kbd{background:#26384a;border-radius:4px;padding:1px 6px;border:1px solid #3a506
       <div class="qbtns tchoices" id="tbtns"></div>
       <div class="qres" id="tres"></div>
       <button id="tnext">次の問題 ▶ <kbd>Enter</kbd></button>
+    </div>
+    <div class="panel" id="pQuiz" style="display:none">
+      <div id="pQuizBody"></div>
+      <button id="pqnext">次の問題 ▶ <kbd>Enter</kbd></button>
     </div>
   </div>
   <div class="panel" id="qchart" style="display:none">
@@ -605,10 +617,54 @@ function setQMode(m){
   qmode=m;
   document.getElementById('qmStrat').classList.toggle('on',m==='strat');
   document.getElementById('qmTerm').classList.toggle('on',m==='term');
+  document.getElementById('qmPost').classList.toggle('on',m==='post');
   document.getElementById('sQuiz').style.display=m==='strat'?'block':'none';
   document.getElementById('tQuiz').style.display=m==='term'?'block':'none';
+  document.getElementById('pQuiz').style.display=m==='post'?'block':'none';
   document.getElementById('qchart').style.display=(m==='strat'&&qchartOpen)?'block':'none';
-  if(m==='strat'){pickQuiz();updScore();}else{pickTermQuiz();updTScore();}
+  if(m==='strat'){pickQuiz();updScore();}
+  else if(m==='term'){pickTermQuiz();updTScore();}
+  else{pickPost();updPScore();}
+}
+// ---- postflop skill quiz (engine-based: hand reading / equity / outs / pot odds) ----
+let pscore=0,ptries=0,pcur=null;
+function updPScore(){if(qmode!=='post')return;document.getElementById('score').textContent=ptries?('ポストフロップ 正解 '+pscore+'/'+ptries+' ('+Math.round(pscore/ptries*100)+'%)'):'';}
+function pqCard(c){const r=RKS[(c/4)|0],s=c%4,R=r==='T'?'10':r;return '<span class="pqc" style="color:'+SUITCOL[s]+'">'+R+SUITSYM[s]+'</span>';}
+function dealPost(){const deck=[];for(let c=0;c<52;c++)deck.push(c);for(let i=51;i>0;i--){const j=(Math.random()*(i+1))|0;const t=deck[i];deck[i]=deck[j];deck[j]=t;}
+  const street=[3,3,4,4,5][(Math.random()*5)|0];return {you:[deck[0],deck[1]],opp:[deck[2],deck[3]],board:deck.slice(4,4+street)};}
+function outsVs(you,opp,board){const dead={};[].concat(board,you,opp).forEach(c=>dead[c]=1);const deck=[];for(let c=0;c<52;c++)if(!dead[c])deck.push(c);let cnt=0,cards=[];for(let i=0;i<deck.length;i++){const full=board.concat([deck[i]]);if(evaluate7(you.concat(full))>=evaluate7(opp.concat(full))){cnt++;cards.push(deck[i]);}}return {count:cnt,cards:cards};}
+function shuffleArr(a){for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;const t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function catOptions(correct){const s=new Set([correct]);while(s.size<4)s.add((Math.random()*9)|0);return shuffleArr([...s]);}
+function numOptions(correct){const s=new Set([correct]);const cand=[correct-2,correct+2,correct-4,correct+4,correct-1,correct+1,correct+6,Math.max(0,correct-3)];for(let i=0;i<cand.length;i++){if(cand[i]>=0&&s.size<4)s.add(cand[i]);}let n=correct+1;while(s.size<4)s.add(n++);return shuffleArr([...s]);}
+function pickPost(){
+  const d=dealPost(),street=d.board.length;
+  const eq=computeEquity([d.you,d.opp],d.board),myEq=eq[0].equity;
+  const myS=evaluate7(d.you.concat(d.board)),opS=evaluate7(d.opp.concat(d.board));
+  const myCat=(myS/EBASE)|0,opCat=(opS/EBASE)|0,behind=myS<opS;
+  let pool=['cat','ahead'];if(street<5){pool.push('equity','potodds');if(behind)pool.push('outs');}
+  const type=pool[(Math.random()*pool.length)|0];let q;
+  if(type==='cat')q={showOpp:false,prompt:'あなたの今の役は？',options:catOptions(myCat).map(k=>({label:catName(k),correct:k===myCat})),explain:'あなたの5枚での最強の役です。'};
+  else if(type==='ahead'){const cor=myS>opS?'win':myS<opS?'lose':'tie',L={win:'あなたが上（リード）',lose:'相手が上（ビハインド）',tie:'同じ（タイ）'};q={showOpp:true,prompt:'今、手が強いのはどっち？',options:['win','lose','tie'].map(k=>({label:L[k],correct:k===cor})),explain:'あなた: '+catName(myCat)+' ／ 相手: '+catName(opCat)+'（このあと変わる可能性あり）'};}
+  else if(type==='equity'){const b=myEq<30?0:myEq<50?1:myEq<70?2:3,L=['〜30%（不利）','30〜50%','50〜70%','70%〜（有利）'];q={showOpp:true,prompt:'リバーまでのあなたの勝率は？',options:L.map((l,i)=>({label:l,correct:i===b})),explain:'実際は約'+myEq.toFixed(0)+'%。'};}
+  else if(type==='outs'){const o=outsVs(d.you,d.opp,d.board);q={showOpp:true,prompt:'次の1枚で逆転（最強以上）になるカードは何枚？',options:numOptions(o.count).map(n=>({label:n+'枚',correct:n===o.count})),explain:'アウツ '+o.count+'枚: '+o.cards.slice(0,18).map(pcardText1).join(' ')};}
+  else{const P=[2,3,4,6,8][(Math.random()*5)|0],Bm=[0.33,0.5,0.75,1][(Math.random()*4)|0],B=Math.round(P*Bm*10)/10,need=B/(P+2*B)*100,call=myEq>=need;q={showOpp:true,prompt:'ポット '+P+'bb に相手が '+B+'bb ベット。あなたの勝率 ≈ '+myEq.toFixed(0)+'%。どうする？',options:shuffleArr([{label:'コール',correct:call},{label:'フォールド',correct:!call}]),explain:'必要勝率 = ベット/(ポット+ベット×2) = '+need.toFixed(0)+'%。あなた '+myEq.toFixed(0)+'% '+(call?'≥':'<')+' '+need.toFixed(0)+'% → '+(call?'コール':'フォールド')+'。'};}
+  pcur={d,q,done:false};renderPost();
+}
+function renderPost(){
+  const d=pcur.d,q=pcur.q,sn=d.board.length===3?'フロップ':d.board.length===4?'ターン':'リバー';
+  let h='<div class="pq-board"><span class="pq-lbl">ボード（'+sn+'）</span>'+d.board.map(pqCard).join('')+'</div>';
+  h+='<div class="pq-hands"><span class="pq-lbl">あなた</span> '+d.you.map(pqCard).join('');
+  if(q.showOpp)h+=' &nbsp;&nbsp;<span class="pq-lbl">相手</span> '+d.opp.map(pqCard).join('');
+  h+='</div><div class="pq-q">'+q.prompt+'</div><div class="qbtns" id="pqbtns"></div><div class="qres" id="pqres"></div>';
+  document.getElementById('pQuizBody').innerHTML=h;
+  const bw=document.getElementById('pqbtns');q.options.forEach((o,i)=>{const b=document.createElement('button');b.textContent=o.label;b.onclick=()=>answerPost(i);bw.appendChild(b);});
+}
+function answerPost(i){
+  if(!pcur||pcur.done)return;pcur.done=true;ptries++;
+  const ok=pcur.q.options[i].correct;if(ok)pscore++;
+  const cor=pcur.q.options.find(o=>o.correct).label;
+  document.getElementById('pqres').innerHTML='<b style="color:'+(ok?'var(--ca)':'var(--ag)')+'">'+(ok?'◎ 正解':'✕ 不正解（正解: '+cor+'）')+'</b><div class="why">'+pcur.q.explain+'</div>';
+  updPScore();
 }
 
 // ---- glossary ---- (GLOSSARY is declared at the top)
@@ -880,7 +936,7 @@ function showView(v){
   document.getElementById('gloss').classList.toggle('on',v==='gloss');
   document.getElementById('calc').classList.toggle('on',v==='calc');
   document.getElementById('howto').classList.toggle('on',v==='howto');
-  if(v==='quiz'){qmode==='strat'?pickQuiz():pickTermQuiz();}
+  if(v==='quiz'){qmode==='strat'?pickQuiz():qmode==='term'?pickTermQuiz():pickPost();}
   if(v==='gloss')renderGloss(gs?gs.value:'');
   if(v==='calc')renderCalc();
 }
@@ -898,12 +954,14 @@ document.getElementById('qnext').onclick=pickQuiz;
 document.getElementById('tnext').onclick=pickTermQuiz;
 document.getElementById('qmStrat').onclick=()=>setQMode('strat');
 document.getElementById('qmTerm').onclick=()=>setQMode('term');
+document.getElementById('qmPost').onclick=()=>setQMode('post');
+document.getElementById('pqnext').onclick=pickPost;
 document.getElementById('qscope').onchange=pickQuiz;
 document.getElementById('qstack').onchange=pickQuiz;
 document.getElementById('qreview').onclick=()=>{reviewMode=!reviewMode;document.getElementById('qreview').classList.toggle('on',reviewMode);pickQuiz();};
 document.getElementById('qclear').onclick=()=>{missed=[];saveMissed();updMissedUI();};
 document.getElementById('qChartBtn').onclick=toggleQuizChart;
-document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.getElementById('quiz').classList.contains('on')){qmode==='strat'?pickQuiz():pickTermQuiz();}});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.getElementById('quiz').classList.contains('on')){qmode==='strat'?pickQuiz():qmode==='term'?pickTermQuiz():pickPost();}});
 document.addEventListener('click',e=>{const el=e.target.closest('.gl');if(el&&el.dataset.go)gotoGloss(el.dataset.go);});
 cfgSel.onchange=()=>{fillSpots();renderGrid();};
 spotSel.onchange=renderGrid;
