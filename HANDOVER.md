@@ -67,6 +67,7 @@ open ~/Claude/poker-gto/index.html
 ├─ nash_pushfold.py         ← HU プッシュ/フォールド Nash（fictitious play、EV出力）
 ├─ nash_multiway.py         ← マルチウェイ first-in jam Nash（任意卓人数＋アンティ対応、EV出力）
 ├─ nash_edge.py             ← EDGE専用 push/fold（4-max/6-max/HU + 1bbアンティ）
+├─ solve_srp.py             ← BTN vs BB SRP フロップCFRソルバー（→ data/srp_flop.json）
 ├─ render_charts.py         ← 100bbチャートを Markdown リファレンス化
 ├─ preflop-charts-6max-100bb.md
 ├─ EDGE_SYSTEM.md           ← EDGE優勝システムのチートシート
