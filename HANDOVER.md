@@ -67,7 +67,8 @@ open ~/Claude/poker-gto/index.html
 ├─ nash_pushfold.py         ← HU プッシュ/フォールド Nash（fictitious play、EV出力）
 ├─ nash_multiway.py         ← マルチウェイ first-in jam Nash（任意卓人数＋アンティ対応、EV出力）
 ├─ nash_edge.py             ← EDGE専用 push/fold（4-max/6-max/HU + 1bbアンティ）
-├─ solve_srp.py             ← BTN vs BB SRP フロップCFRソルバー（→ data/srp_flop.json）
+├─ solve_srp.py             ← BTN vs BB SRP 単一ストリートCFR（2サイズ＋チェックレイズ、→ data/srp_flop.json）
+├─ solve_srp_turn.py        ← BTN vs BB SRP 2ストリートCFR（flop+turn, river=equity、実戦的c-bet、→ data/srp_turn.json）
 ├─ render_charts.py         ← 100bbチャートを Markdown リファレンス化
 ├─ preflop-charts-6max-100bb.md
 ├─ EDGE_SYSTEM.md           ← EDGE優勝システムのチートシート
@@ -94,9 +95,13 @@ cd ~/Claude/poker-gto
 .venv/bin/python nash_pushfold.py    # HU Nash → data/pushfold_nash.json（数秒）
 .venv/bin/python nash_multiway.py    # First-in jam Nash → data/pushfold_multiway.json（~1分）
 .venv/bin/python nash_edge.py        # EDGE push/fold(+1bbアンティ) → data/pushfold_edge.json（~1.5分）
+.venv/bin/python solve_srp.py        # SRP単一ストリート(38盤) → data/srp_flop.json（~数分）
+.venv/bin/python solve_srp_turn.py   # SRP 2ストリート(38盤) → data/srp_turn.json（~90分・ターン札ごとにリバー列挙）
 .venv/bin/python build_site.py       # index.html 再生成（数秒）
 open index.html
 ```
+- `solve_srp_turn.py As7d2c` のように引数で1フロップだけ解ける（検証用、~2.5分/盤）。data/srp_turn.json は1フロップごとに逐次保存（途中でビルドしても部分反映）。
+- **ポストフロップSRPの設計**: 単一ストリート版=サイズ選択＋チェックレイズが見えるがc-bet控えめ。2ストリート版=ターンの追撃価値込みで実戦的c-bet（As7d2c 38%→73%）。SRP戦略クイズはBTN側に2ストリート(実戦的)、BB側に単一ストリート(チェックレイズ込み3択)を使う。**未対応の本格化**: 全1755盤・複数サイズ・リバーまでの完全多ストリートは純Pythonでは計算量的に過大。
 
 近似レンジ（`data/charts_100bb.json` / `charts_extra.json`）は多エージェント生成物を
 永続化したもの。**作り直す場合のみ**ワークフロー再実行が必要（§5）。

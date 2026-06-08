@@ -45,7 +45,7 @@ try {
   for(let z=0;z<25;z++) global.pickPost(); // exercise all postflop question types
   fire('qmSrp','onclick'); if(!reg['srpQuizBody']._html||reg['srpQuizBody']._html.indexOf('pq-q')<0) throw new Error('SRP strategy quiz not rendered');
   if(reg['srpQuizBody']._html.indexOf('pq-board')<0) throw new Error('SRP quiz has no flop (empty data?)');
-  for(let z=0;z<40;z++){ global.pickSrp(); global.answerSrp((Math.random()*3)|0); if(reg['srpres']._html.indexOf('GTO頻度')<0) throw new Error('SRP grading not shown'); } // both sides + grading
+  for(let z=0;z<40;z++){ if(reg['srpbtns'])reg['srpbtns']._children=[]; global.pickSrp(); const nb=reg['srpbtns']._children.length; if(nb<2) throw new Error('SRP quiz has <2 options'); global.answerSrp((Math.random()*nb)|0); if(reg['srpres']._html.indexOf('GTO頻度')<0) throw new Error('SRP grading not shown'); } // both sides (2- and 3-option) + grading
   console.log('SRP quiz ok: rendered board + 40 graded answers');
   fire('qmStrat','onclick');
   fire('qmTerm','onclick');   if(!reg['tprompt']._tc) throw new Error('term quiz empty');
