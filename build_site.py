@@ -32,6 +32,25 @@ if os.path.exists(SRC_MULTIWAY):
 # 4) extra configs (full-ring / MTT / 50bb)
 if os.path.exists(SRC_EXTRA):
     charts += json.load(open(SRC_EXTRA))
+# 5) BTN vs BB SRP flop GTO (self-built CFR solver, postflop)
+SRC_SRP = os.path.join(DATA, "srp_flop.json")
+if os.path.exists(SRC_SRP):
+    for f in json.load(open(SRC_SRP))["flops"]:
+        cat = f"{f['flop']} — {f['label']}"
+        charts.append({
+            "config": "BTN vs BB SRP (flop GTO)", "cat": cat,
+            "title": f"{f['flop']} BTN c-bet", "sizing": "2/3 pot c-bet",
+            "rangePct": f"c-bet {f['cbet_overall']}%", "aggroLabel": "Cbet", "exact": True,
+            "notes": f"BTN vs BB シングルレイズドポット、フロップ {f['flop']}（{f['label']}）。BBチェック→BTNがcベット(2/3ポット)orチェック。自前CFRソルバーのフロップGTO（赤=cベット / 青=チェック）。ターン/リバーはエクイティで評価する単一ベットラウンドの厳密Nash（深いSPRでは近似）。",
+            "hands": [{"hand": k, "aggroPct": v, "callPct": 0, "foldPct": 100 - v} for k, v in f["cbet"].items()],
+        })
+        charts.append({
+            "config": "BTN vs BB SRP (flop GTO)", "cat": cat,
+            "title": f"{f['flop']} BB vs c-bet", "sizing": "vs 2/3 pot",
+            "rangePct": f"call {f['bbcall_overall']}%", "aggroLabel": "Raise", "exact": True,
+            "notes": f"BB が BTN の 2/3 ポット c ベットに対して コール/フォールド（フロップ {f['flop']}）。緑=コール / 青=フォールド。自前CFR（単一ベットラウンド）。ウェットな盤ほど守備が広い。",
+            "hands": [{"hand": k, "aggroPct": 0, "callPct": v, "foldPct": 100 - v} for k, v in f["bbcall"].items()],
+        })
 
 # normalize: hands -> {name:[a,c,f]}
 norm = []
@@ -325,6 +344,7 @@ kbd{background:#26384a;border-radius:4px;padding:1px 6px;border:1px solid #3a506
     <li><b>構成</b>＝ゲームの種類とスタックの深さ。例：<b>6-max 100bb cash</b>（6人・100bb）、<b>EDGE Push/Fold</b>（EDGE実戦の短スタック）、<b>First-in Push/Fold</b>、<b>50bb / フルリング / MTT</b> など。まず「どんな状況か」をここで選ぶ。</li>
     <li><b>スポット</b>＝その中の具体的な局面。例：<b>UTG RFI</b>（UTGで最初に開くか）、<b>BTN vs SB 3bet</b>、<b>4-max BTN Jam — 10bb</b>（4-maxのBTNで10bbをジャムするか）。ポジション・相手の行動・スタックがここで決まる。</li>
     <li><b>スポット名の読み方</b>：「自分のポジション＋状況」。<b>RFI</b>＝最初に自分が開く／<b>vs ○○</b>＝相手の○○に対して／<b>Jam — Xbb</b>＝Xbbをオールインするか。</li>
+    <li><b>ポストフロップGTO</b>：構成「<b>BTN vs BB SRP (flop GTO)</b>」で、フロップ別の<b>cベット頻度</b>（赤=ベット/青=チェック）と<b>BBの守備</b>（緑=コール/青=フォールド）が見られます。自前CFRソルバーで計算（ウェットな盤ほどBBが広く守る）。</li>
   </ul>
   <h3>▸ よく出るアクション用語</h3>
   <ul>
