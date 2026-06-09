@@ -119,10 +119,13 @@ GLOSSARY = json.dumps(glossary, ensure_ascii=False, separators=(",", ":"))
 _srp_path = os.path.join(DATA, "srp_flop.json")
 _srp_data = json.load(open(_srp_path)) if os.path.exists(_srp_path) else {"flops": []}
 SRP_JSON = json.dumps(_srp_data, ensure_ascii=False, separators=(",", ":"))
-_srp2_path = os.path.join(DATA, "srp_turn.json")   # 2-street (realistic c-bet)
+_srp2_path = os.path.join(DATA, "srp_turn.json")   # 2-street (realistic c-bet, 38 curated for charts)
 _srp2_data = json.load(open(_srp2_path)) if os.path.exists(_srp2_path) else {"flops": []}
 SRP2_JSON = json.dumps(_srp2_data, ensure_ascii=False, separators=(",", ":"))
-print(f"SRP quiz flops: {len(_srp_data.get('flops', []))}  (2-street: {len(_srp2_data.get('flops', []))})")
+_srpfull_path = os.path.join(DATA, "srp_turn_full.json")   # 2-street broad set (~200) for the quiz
+_srpfull_data = json.load(open(_srpfull_path)) if os.path.exists(_srpfull_path) else {"flops": []}
+SRPFULL_JSON = json.dumps(_srpfull_data, ensure_ascii=False, separators=(",", ":"))
+print(f"SRP quiz flops: {len(_srp_data.get('flops', []))}  (2-street charts: {len(_srp2_data.get('flops', []))}, quiz broad: {len(_srpfull_data.get('flops', []))})")
 
 HTML = """<!DOCTYPE html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -411,7 +414,7 @@ kbd{background:#26384a;border-radius:4px;padding:1px 6px;border:1px solid #3a506
     <li>「<b>出題範囲</b>」でEDGE/全構成、「<b>スタック</b>」で深さ（≤10bb等）を絞れます。</li>
     <li>「<b>📊チャート</b>」で答えの表、「<b>用語クイズ</b>」で言葉も練習。</li>
     <li><b>ポストフロップ</b>＝フロップ以降の役・勝率・アウツ・ポットオッズを当てる練習（全て厳密計算）。</li>
-    <li><b>SRP戦略</b>＝BTN vs BBのフロップで、自分のハンドの<b>GTOアクション</b>（BTN: ベット/チェック、BB: フォールド/コール/チェックレイズ）を当てる練習。混合戦略なので、<b>GTOが使う行動ならどれも正解</b>として頻度を表示します。</li>
+    <li><b>SRP戦略</b>＝BTN vs BBのフロップで、自分のハンドの<b>GTOアクション</b>を当てる練習。BTNのc-betは<b>約200盤</b>の実戦的2ストリート解、BBの守備（フォールド/コール/チェックレイズ）は38盤から出題。混合戦略なので、<b>GTOが使う行動ならどれも正解</b>として頻度を表示します。</li>
   </ul>
   <h3>③ 計算機 タブ — 勝率（エクイティ）計算</h3>
   <ul>
@@ -437,7 +440,8 @@ kbd{background:#26384a;border-radius:4px;padding:1px 6px;border:1px solid #3a506
 const DATA = __PAYLOAD__;
 const GLOSSARY = __GLOSSARY__;   // defined early: used by the term-quiz (ALLTERMS) before the glossary section
 const SRP = __SRP__;             // single-street SRP (sizing + check-raise) — for BB defense quiz
-const SRP2 = __SRP2__;           // two-street SRP (realistic c-bet) — for BTN bet quiz
+const SRP2 = __SRP2__;           // two-street SRP, 38 curated (realistic c-bet) — charts
+const SRP_FULL = __SRPFULL__;    // two-street SRP, broad ~200-flop set — quiz BTN questions
 const RANKS=['A','K','Q','J','T','9','8','7','6','5','4','3','2'];
 const COL={a:'var(--ag)',c:'var(--ca)',f:'var(--fo)'};
 function handName(i,j){const a=RANKS[i],b=RANKS[j];return i===j?a+a:(i<j?a+b+'s':b+a+'o');}
@@ -823,12 +827,13 @@ function srpStart(F,board,name,combo,mix,prompt,note){scur={F,board,combo,name,m
 function srpDeal(F){const board=srpFlopCards(F.flop),dead={};board.forEach(c=>dead[c]=1);return {board,dead};}
 function srpHand(names,dead){let name=null,combo=null;for(let t=0;t<16&&!combo;t++){name=names[(Math.random()*names.length)|0];combo=srpPickCombo(name,dead);}return {name,combo};}
 function pickSrp(){
-  const has2=!!(SRP2.flops&&SRP2.flops.length), has1=!!(SRP.flops&&SRP.flops.length);
+  const SRP_BTN=(SRP_FULL.flops&&SRP_FULL.flops.length)?SRP_FULL:SRP2;   // broad ~200 set if built, else 38
+  const has2=!!(SRP_BTN.flops&&SRP_BTN.flops.length), has1=!!(SRP.flops&&SRP.flops.length);
   if(!has1&&!has2){document.getElementById('srpQuizBody').innerHTML='<div class="gmut">SRPデータがありません。</div>';return;}
   let side=Math.random()<0.5?'btn':'bb';
   if(side==='bb'&&!has1)side='btn';
-  if(side==='btn'&&has2){            // BTN c-bet from realistic 2-street solve
-    const F=SRP2.flops[(Math.random()*SRP2.flops.length)|0],{board,dead}=srpDeal(F);
+  if(side==='btn'&&has2){            // BTN c-bet from realistic 2-street solve (broad set)
+    const F=SRP_BTN.flops[(Math.random()*SRP_BTN.flops.length)|0],{board,dead}=srpDeal(F);
     const {name,combo}=srpHand(Object.keys(F.cbet),dead),bet=F.cbet[name]||0;
     srpStart(F,board,name,combo,[['cベット(2/3)',bet],['チェック',Math.max(0,100-bet)]],
       'あなたは <b>BTN</b>。BBがチェックした。あなたの行動は？','ターンの追撃価値込みの実戦的c-bet頻度。'+SRPNOTE2);return;
@@ -1165,6 +1170,6 @@ spotSel.onchange=renderGrid;
 fillSpots();renderGrid();updScore();updMissedUI();
 </script></body></html>"""
 
-out = HTML.replace("__PAYLOAD__", PAYLOAD).replace("__GLOSSARY__", GLOSSARY).replace("__SRP__", SRP_JSON).replace("__SRP2__", SRP2_JSON)
+out = HTML.replace("__PAYLOAD__", PAYLOAD).replace("__GLOSSARY__", GLOSSARY).replace("__SRP__", SRP_JSON).replace("__SRP2__", SRP2_JSON).replace("__SRPFULL__", SRPFULL_JSON)
 open(os.path.join(BASE, "index.html"), "w").write(out)
 print("WROTE", os.path.join(BASE, "index.html"), f"({len(out)} bytes)")

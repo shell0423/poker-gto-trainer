@@ -167,14 +167,35 @@ FLOPS = [
 ]
 
 if __name__ == "__main__":
-    only = sys.argv[1] if len(sys.argv) > 1 else None
-    out = []
-    for s, label in FLOPS:
-        if only and s != only: continue
-        flop = [cd(s[i:i+2]) for i in range(0, 6, 2)]
-        res = solve_flop(flop)
-        print(f"[{s}] {label}: c-bet {res['cbet_overall']}% | BB call {res['call_overall']}%", flush=True)
-        res["flop"] = s; res["label"] = label
-        out.append(res)
-        json.dump({"flops": out}, open(os.path.join(D, "srp_turn.json"), "w"))
-    print("SAVED data/srp_turn.json |", len(out), "flops")
+    args = sys.argv[1:]
+    if args and args[0] == "shard":
+        # parallel run: process <flopfile> entries where idx % N == I (default flops_1755.json)
+        I, Nsh = int(args[1]), int(args[2])
+        flopfile = args[3] if len(args) > 3 else "flops_1755.json"
+        allf = json.load(open(os.path.join(D, flopfile)))
+        jobs = [(i, allf[i]["flop"], allf[i]["label"]) for i in range(len(allf)) if i % Nsh == I]
+        os.makedirs(os.path.join(D, "srp_turn_parts"), exist_ok=True)
+        partp = os.path.join(D, "srp_turn_parts", f"part_{I}.json")
+        out = json.load(open(partp))["flops"] if os.path.exists(partp) else []   # resume
+        done = {r["flop"] for r in out}
+        for n, (idx, s, label) in enumerate(jobs):
+            if s in done: continue
+            flop = [cd(s[k:k+2]) for k in range(0, 6, 2)]
+            res = solve_flop(flop)
+            res["flop"] = s; res["label"] = label; res["idx"] = idx
+            out.append(res)
+            json.dump({"flops": out}, open(partp, "w"))
+            print(f"[shard {I}] {n+1}/{len(jobs)} {s} c-bet {res['cbet_overall']}% call {res['call_overall']}%", flush=True)
+        print(f"[shard {I}] DONE {len(out)}/{len(jobs)} flops", flush=True)
+    else:
+        only = args[0] if args else None
+        out = []
+        for s, label in FLOPS:
+            if only and s != only: continue
+            flop = [cd(s[i:i+2]) for i in range(0, 6, 2)]
+            res = solve_flop(flop)
+            print(f"[{s}] {label}: c-bet {res['cbet_overall']}% | BB call {res['call_overall']}%", flush=True)
+            res["flop"] = s; res["label"] = label
+            out.append(res)
+            json.dump({"flops": out}, open(os.path.join(D, "srp_turn.json"), "w"))
+        print("SAVED data/srp_turn.json |", len(out), "flops")
