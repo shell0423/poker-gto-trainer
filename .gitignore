@@ -3,3 +3,6 @@ __pycache__/
 *.pyc
 .DS_Store
 *.app
+
+# solver shards / logs (intermediate; merged into srp_turn_full.json)
+data/srp_turn_parts/
