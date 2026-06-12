@@ -176,8 +176,11 @@ if __name__ == "__main__":
         jobs = [(i, allf[i]["flop"], allf[i]["label"]) for i in range(len(allf)) if i % Nsh == I]
         os.makedirs(os.path.join(D, "srp_turn_parts"), exist_ok=True)
         partp = os.path.join(D, "srp_turn_parts", f"part_{I}.json")
-        out = json.load(open(partp))["flops"] if os.path.exists(partp) else []   # resume
+        out = json.load(open(partp))["flops"] if os.path.exists(partp) else []   # resume (this shard)
         done = {r["flop"] for r in out}
+        gfull = os.path.join(D, "srp_turn_full.json")                            # skip flops already solved globally
+        if os.path.exists(gfull):
+            for r in json.load(open(gfull))["flops"]: done.add(r["flop"])
         for n, (idx, s, label) in enumerate(jobs):
             if s in done: continue
             flop = [cd(s[k:k+2]) for k in range(0, 6, 2)]
